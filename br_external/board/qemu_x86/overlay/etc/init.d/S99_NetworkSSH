@@ -1,0 +1,18 @@
+#!/bin/sh
+
+case "$1" in
+
+    start)
+        printf "setup eth0 for ssh"
+        ip a add 10.0.2.15/24 dev eth0
+        ip li set eth0 up
+        ;;
+    stop)
+        printf "unset eth0"
+        ip a flush eth0 
+        ip li set eth0 down
+        ;;
+esac
+
+exit $?
+

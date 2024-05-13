@@ -1,0 +1,7 @@
+#!/bin/bash
+
+p=$( realpath $( dirname  $0 ))
+
+pushd "${p}" > /dev/null || exit 
+bash --init-file "${p}/br2.shell" 
+popd > /dev/null || exit

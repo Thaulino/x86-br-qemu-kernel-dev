@@ -1,0 +1,1 @@
+source "$BR2_EXTERNAL_QEMU_KERNEL_DEV_PATH/package/foo/Config.in"

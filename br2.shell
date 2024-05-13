@@ -1,0 +1,135 @@
+#!/bin/bash
+
+if [ -f ~/.bashrc ]
+then
+	source ~/.bashrc
+fi
+
+FILENAME="br2.shell"
+PROJECT_BASE=$(realpath "$( pwd )")
+
+if ! [ -f "$PROJECT_BASE/$FILENAME" ]
+then 
+    echo "ERROR: Could not detect project base, please change directory"
+    exit 1 
+fi
+
+if ! [ -f "$PROJECT_BASE/.done.setup" ]
+then 
+    echo "ERROR: Project seems to be not setup, please run: make -C $PROJECT_BASE"
+    exit 1
+fi 
+
+BR2_SHELL_DIR="${PROJECT_BASE}"
+export BR2_SHELL_DIR
+
+BR2_SHELL_SCRIPT="${BR2_SHELL_DIR}/$FILENAME"
+export BR2_SHELL_SCRIPT 
+
+function init_optional_parameter(){
+    VARIABLE_NAME=$1
+    DEFAULT_VALUE=$2
+
+    if [ -z ${!VARIABLE_NAME+x} ] 
+    then 
+        eval "${VARIABLE_NAME}"='$DEFAULT_VALUE'
+    fi
+    
+    declare -g "${VARIABLE_NAME}=${!VARIABLE_NAME}"
+}
+
+BR2_TREE=$PROJECT_BASE/buildroot
+
+init_optional_parameter BR2_BASE_DIR "${PROJECT_BASE}/build"
+init_optional_parameter BR2_EXTERNAL "${PROJECT_BASE}/br_external"
+init_optional_parameter BR2_DEFCONFIG "${PROJECT_BASE}/br_external/configs/qemu_x86_defconfig"
+
+QEMU_SSH_PORT=6060
+
+function br2vars(){
+cat <<EOF
+
+BR2_SHELL_DIR= $BR2_SHELL_DIR
+BR2_SHELL_SCRIPT=$BR2_SHELL_SCRIPT
+
+Out of tree project config
+BR2_EXTERNAL= $BR2_EXTERNAL
+
+Output dir  
+BR2_BASE_DIR= $BR2_BASE_DIR
+
+Source tree buildroot
+BR2_TREE= $BR2_TREE
+
+br2 defconfig used by project
+BR2_DEFCONFIG = $BR2_DEFCONFIG
+
+qemu ssh port
+QEMU_SSH_PORT = $QEMU_SSH_PORT
+
+EOF
+}
+export -f br2vars
+
+function br2init(){
+    make -C "$BR2_TREE" BR2_EXTERNAL=$BR2_EXTERNAL BR2_DEFCONFIG="$BR2_DEFCONFIG" defconfig
+    make -C "$BR2_TREE" BR2_EXTERNAL=$BR2_EXTERNAL menuconfig
+    mkdir -p ${BR2_BASE_DIR}/build/
+    touch ${BR2_BASE_DIR}/build/build-time.log
+}
+export -f br2init
+
+function br2make(){
+    echo "make -C $BR2_TREE BR2_EXTERNAL=$BR2_EXTERNAL BASE_DIR=$BR2_BASE_DIR $*@"
+    make -C "$BR2_TREE" BR2_EXTERNAL="$BR2_EXTERNAL" BASE_DIR="$BR2_BASE_DIR" "$@"
+}
+export -f br2make
+
+function br2qemu(){
+    pushd "${PROJECT_BASE}"
+    qemu-system-x86_64 -kernel ${BR2_BASE_DIR}/images/bzImage -initrd ${BR2_BASE_DIR}/images/rootfs.cpio -m 1G -nographic -nic user,hostfwd=tcp::${QEMU_SSH_PORT}-:22 -append "debug console=ttyS0 loglevel=8"
+    popd
+}
+export -f br2qemu 
+
+function br2ssh()
+{
+    if [ $# -eq 0 ]
+    then
+        ssh -p ${QEMU_SSH_PORT} root@localhost
+    else 
+        ssh -p ${QEMU_SSH_PORT} root@localhost $@
+    fi
+}
+export -f br2ssh 
+
+
+function br2scp()
+{
+    if [ $1 = "help" ] ||  [ $1 = "-h" ] 
+    then 
+        cat <<EOF
+Usage:
+br2scp <src-file> <target-file>
+target-file: absolut path
+EOF
+        return 
+    fi
+
+    SRC=$1
+    TARGET=$2
+    scp -P ${QEMU_SSH_PORT} ${SRC} "root@localhost:${TARGET}"
+}
+export -f br2ssh 
+
+function br2toolchain(){
+    if [ -f  "${BR2_BASE_DIR}/host/environment-setup" ] 
+    then
+        source ${BR2_BASE_DIR}/host/environment-setup
+    else    
+        echo "Error: ${BR2_BASE_DIR}/host/environment-setup does not exist, create by running: 'br2make all'"
+    fi
+}
+
+PS1="(br2)":${PS1}
+

@@ -1,0 +1,25 @@
+# 
+build/*
+!build/.gitkeep
+
+#
+buildroot
+
+# 
+.done.*
+
+# module build artifacts
+.*.cmd
+*.mod.cmd
+*.mod.c
+*.ko
+*.mod
+*.o
+*.symvers
+*.order
+
+*.app
+
+compile_commands.json
+
+.cache

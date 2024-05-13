@@ -1,0 +1,4 @@
+config BR2_PACKAGE_FOO
+    bool "Foo software"
+    help
+        "Foo software"
