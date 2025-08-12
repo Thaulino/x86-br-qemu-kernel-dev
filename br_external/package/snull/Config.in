@@ -1,0 +1,4 @@
+config BR2_PACKAGE_SNULL_DRIVER
+    bool "Snull driver"
+    help
+        "Snull driver"
